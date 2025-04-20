@@ -11,7 +11,7 @@ public:
     ~BPTriangleCount();
     void build(const EdgeVector &_e_v);
     int triangle_count();
-    int triangle_count_mt(int thread_num); // multi-threading using Intel TBB.
+    int triangle_count_mt(int thread_num);
     EdgeVector edge_vec;
     std::vector<UVertex> graph;
     int *pool_base = NULL;
@@ -103,21 +103,8 @@ int BPTriangleCount::triangle_count()
         const UVertex &u = graph[e.first];
         const UVertex &v = graph[e.second];
 
-#if SIMD_STATE == 2
-        res += bp_intersect_scalar2x_count(pool_base + u.start, pool_state + u.start, u.deg,
-                                           pool_base + v.start, pool_state + v.start, v.deg);
-#elif SIMD_STATE == 4
-#if SIMD_MODE == 0
-        res += bp_intersect_simd4x_count(pool_base + u.start, pool_state + u.start, u.deg,
-                                         pool_base + v.start, pool_state + v.start, v.deg);
-#else
         res += bp_intersect_filter_simd4x_count(pool_base + u.start, pool_state + u.start, u.deg,
                                                 pool_base + v.start, pool_state + v.start, v.deg);
-#endif
-#else
-        res += bp_intersect_count(pool_base + u.start, pool_state + u.start, u.deg,
-                                  pool_base + v.start, pool_state + v.start, v.deg);
-#endif
     }
     return res;
 }
@@ -128,35 +115,20 @@ BPTriangleCount *bptc;
 
 void *con_calc_triangle(void *con)
 {
-    long id;
-    id = (unsigned long long)(con);
+    long id = (long)(con);
     long long e_idx_l = bptc->edge_vec.size() / con_thread_num * id;
-    long long e_idx_r = bptc->edge_vec.size() / con_thread_num * (id + 1) - 1;
-    if (id + 1 == con_thread_num)
-        e_idx_r = bptc->edge_vec.size() - 1;
+    long long e_idx_r = (id + 1 == con_thread_num) ? bptc->edge_vec.size() - 1 : bptc->edge_vec.size() / con_thread_num * (id + 1) - 1;
 
-    for (long long i = e_idx_l; i < e_idx_r; ++i)
+    for (long long i = e_idx_l; i <= e_idx_r; ++i)
     {
         const auto &e = bptc->edge_vec[i];
         const UVertex &u = bptc->graph[e.first];
         const UVertex &v = bptc->graph[e.second];
 
-#if SIMD_STATE == 2
-        con_res[id] += bp_intersect_scalar2x_count(bptc->pool_base + u.start, bptc->pool_state + u.start, u.deg,
-                                                   bptc->pool_base + v.start, bptc->pool_state + v.start, v.deg);
-#elif SIMD_STATE == 4
-#if SIMD_MODE == 0
-        con_res[id] += bp_intersect_simd4x_count(bptc->pool_base + u.start, bptc->pool_state + u.start, u.deg,
-                                                 bptc->pool_base + v.start, bptc->pool_state + v.start, v.deg);
-#else
         con_res[id] += bp_intersect_filter_simd4x_count(bptc->pool_base + u.start, bptc->pool_state + u.start, u.deg,
                                                         bptc->pool_base + v.start, bptc->pool_state + v.start, v.deg);
-#endif
-#else
-        con_res[id] += bp_intersect_count(bptc->pool_base + u.start, bptc->pool_state + u.start, u.deg,
-                                          bptc->pool_base + v.start, bptc->pool_state + v.start, v.deg);
-#endif
     }
+
     pthread_exit(NULL);
 }
 
