@@ -1,11 +1,12 @@
 # Object files
 *.o
 # Large data files
-data/youtube_cont.txt
+data/amazon_cont_GRO.txt
 data/youtube_cont_GRO.txt
 data/youtube_undirected_GRO.txt
-data/*.txt
 youtube_undirected_GRO.sm.queries
+data/youtube_label_GRO.txt
+data/tiny_graph.txt
 # Binaries / executables
 tc
 
