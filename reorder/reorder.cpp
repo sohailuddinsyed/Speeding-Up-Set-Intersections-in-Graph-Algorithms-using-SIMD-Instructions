@@ -1,5 +1,5 @@
 #include "porder.hpp"
-#include "../util.hpp"
+#include "util.hpp"
 
 POrder porder;
 
@@ -42,54 +42,14 @@ int main(int argc, char *argv[])
     double build_time = (time_end.tv_sec - time_start.tv_sec) * 1000.0 + (time_end.tv_usec - time_start.tv_usec) / 1000.0;
     printf("build_time=%.3fms\n", build_time);
 
-    // porder.leaf_node_count();
-    // porder.select_bignode(0.8);
     EdgeVector new_edge_vec;
     gettimeofday(&time_start, NULL);
 
-    if (order_option == "hybrid")
-    {
-        reordered_graph_file_path = graph_name + "_Horder.txt";
-        reordered_newid_file_path = graph_name + "_Horder_newID.txt";
-        new_edge_vec = porder.hybrid_bfsdeg();
-    }
-    else if (order_option == "mloggapa")
-    {
-        reordered_graph_file_path = graph_name + "_MLOGGAPAorder.txt";
-        reordered_newid_file_path = graph_name + "_MLOGGAPAorder_newID.txt";
-        new_edge_vec = porder.mloggapa_order();
-    }
-    else if (order_option == "metis")
-    {
-        reordered_graph_file_path = graph_name + "_METISorder.txt";
-        reordered_newid_file_path = graph_name + "_METIS_newID.txt";
-        new_edge_vec = porder.metis_order();
-    }
-    else if (order_option == "slashburn")
-    {
-        reordered_graph_file_path = graph_name + "_SBorder.txt";
-        reordered_newid_file_path = graph_name + "_SB_newID.txt";
-        new_edge_vec = porder.slashburn_order();
-    }
-    else if (order_option == "bfsr")
-    {
-        reordered_graph_file_path = graph_name + "_BFSRorder.txt";
-        reordered_newid_file_path = graph_name + "_BFSR_newID.txt";
-        new_edge_vec = porder.bfsr_order();
-    }
-    else if (order_option == "dfs")
-    {
-        reordered_graph_file_path = graph_name + "_DFSorder.txt";
-        reordered_newid_file_path = graph_name + "_DFS_newID.txt";
-        new_edge_vec = porder.dfs_order();
-    }
-    else
-    {
-        order_option = "gro";
-        reordered_graph_file_path = graph_name + "_GRO.txt";
-        reordered_newid_file_path = graph_name + "_GRO_newID.txt";
-        new_edge_vec = porder.greedy_mheap();
-    }
+    order_option = "gro";
+    reordered_graph_file_path = graph_name + "_GRO.txt";
+    reordered_newid_file_path = graph_name + "_GRO_newID.txt";
+    new_edge_vec = porder.greedy_mheap();
+    //}
 
     printf("order_algo=%s graph_file=%s\n", order_option.c_str(), graph_name.c_str());
     gettimeofday(&time_end, NULL);

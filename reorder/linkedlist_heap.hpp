@@ -1,7 +1,7 @@
 #ifndef _L_HEAP_H
 #define _L_HEAP_H
 
-#include "../util.hpp"
+#include "util.hpp"
 
 struct LHNode
 {
