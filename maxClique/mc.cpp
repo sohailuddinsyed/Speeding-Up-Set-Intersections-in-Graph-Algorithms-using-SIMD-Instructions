@@ -6,7 +6,7 @@
 #include "util.hpp"
 #include "org_maximal_clique.hpp"
 #include "bitpack_maximal_clique.hpp"
-#include "roaring_maximal_clique.hpp"
+// #include "roaring_maximal_clique.hpp"
 using namespace std;
 
 struct timeval time_start;
