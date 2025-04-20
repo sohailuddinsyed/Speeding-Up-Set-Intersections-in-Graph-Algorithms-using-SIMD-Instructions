@@ -4,7 +4,7 @@
 data/youtube_cont.txt
 data/youtube_cont_GRO.txt
 data/youtube_undirected_GRO.txt
-
+data/*.txt
 # Binaries / executables
 tc
 

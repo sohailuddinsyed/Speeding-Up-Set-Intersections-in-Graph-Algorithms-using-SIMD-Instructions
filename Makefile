@@ -1,7 +1,7 @@
 # Compiler and flags
 CXX = g++
 CXXFLAGS = -std=c++11 -O3 -Wall -mavx2 -msse3
-LDFLAGS = -lroaring -lpthread
+LDFLAGS = -lpthread
 
 # Target and sources
 TARGET = tc
@@ -15,7 +15,7 @@ $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Pattern rule for .o files
-%.o: %.cpp
+%.o: %.cpp util.hpp set_operation.hpp bitpack_triangle_count.hpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Clean rule

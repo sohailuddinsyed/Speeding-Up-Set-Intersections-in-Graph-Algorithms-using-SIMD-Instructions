@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
         graph_file_path = std::string(argv[1]);
 
     auto edge_vec = load_graph(graph_file_path);
-    printf("load_graph done....\n");
+    printf("load_graph done...\n");
 
     gettimeofday(&time_start, NULL);
     tc.build(edge_vec);
