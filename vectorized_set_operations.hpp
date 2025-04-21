@@ -1,16 +1,16 @@
-#ifndef _SET_OPERATION_H
-#define _SET_OPERATION_H
+#ifndef VECTORIZED_SET_OPERATIONS_HPP
+#define VECTORIZED_SET_OPERATIONS_HPP
 
-#include "util.hpp"
+#include "graph_data_utils.hpp"
 
-constexpr int cyclic_shift1 = _MM_SHUFFLE(0, 3, 2, 1);
-constexpr int cyclic_shift2 = _MM_SHUFFLE(2, 1, 0, 3);
-constexpr int cyclic_shift3 = _MM_SHUFFLE(1, 0, 3, 2);
+constexpr int SIMD_SHUFFLE_A = _MM_SHUFFLE(0, 3, 2, 1);
+constexpr int SIMD_SHUFFLE_B = _MM_SHUFFLE(2, 1, 0, 3);
+constexpr int SIMD_SHUFFLE_C = _MM_SHUFFLE(1, 0, 3, 2);
 
-static const __m128i all_zero_si128 = _mm_setzero_si128();
-static const __m128i all_one_si128 = _mm_set_epi32(0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff);
+static const __m128i SIMD_ZERO_VECTOR = _mm_setzero_si128();
+static const __m128i SIMD_FULL_MASK = _mm_set_epi32(0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff);
 
-static const uint8_t shuffle_pi8_array[256] =
+static const uint8_t SIMD_SHUFFLE_TABLE_RAW[256] =
     {
         255,
         255,
@@ -269,88 +269,10 @@ static const uint8_t shuffle_pi8_array[256] =
         14,
         15,
 };
-static const __m128i *shuffle_mask = (__m128i *)(shuffle_pi8_array);
+static const __m128i *SIMD_SHUFFLE_TABLE_PTR = (__m128i *)(SIMD_SHUFFLE_TABLE_RAW);
 unsigned long long inter_cnt = 0, no_match_cnt = 0, cmp_cnt = 0;
 unsigned long long multimatch_cnt = 0, skew_cnt = 0, low_select_cnt = 0;
-unsigned long long byte_check_cnt[4] = {0, 0, 0, 0};
-inline int *prepare_byte_check_mask_dict()
-{
-    int *mask = new int[65536];
-
-    auto trans_c_s = [](const int c) -> int
-    {
-        switch (c)
-        {
-        case 0:
-            return -1; // no match
-        case 1:
-            return 0;
-        case 2:
-            return 1;
-        case 4:
-            return 2;
-        case 8:
-            return 3;
-        default:
-            return 4; // multiple matches.
-        }
-    };
-
-    for (int x = 0; x < 65536; ++x)
-    {
-        int c0 = (x & 0xf), c1 = ((x >> 4) & 0xf);
-        int c2 = ((x >> 8) & 0xf), c3 = ((x >> 12) & 0xf);
-        int s0 = trans_c_s(c0), s1 = trans_c_s(c1);
-        int s2 = trans_c_s(c2), s3 = trans_c_s(c3);
-
-        bool is_multiple_match = (s0 == 4) || (s1 == 4) ||
-                                 (s2 == 4) || (s3 == 4);
-        if (is_multiple_match)
-        {
-            mask[x] = -1;
-            continue;
-        }
-        bool is_no_match = (s0 == -1) && (s1 == -1) &&
-                           (s2 == -1) && (s3 == -1);
-        if (is_no_match)
-        {
-            mask[x] = -2;
-            continue;
-        }
-        if (s0 == -1)
-            s0 = 0;
-        if (s1 == -1)
-            s1 = 1;
-        if (s2 == -1)
-            s2 = 2;
-        if (s3 == -1)
-            s3 = 3;
-        mask[x] = (s0) | (s1 << 2) | (s2 << 4) | (s3 << 6);
-    }
-
-    return mask;
-}
-static const int *byte_check_mask_dict = prepare_byte_check_mask_dict();
-
-inline uint8_t *prepare_match_shuffle_dict()
-{
-    uint8_t *dict = new uint8_t[4096];
-
-    for (int x = 0; x < 256; ++x)
-    {
-        for (int i = 0; i < 4; ++i)
-        {
-            uint8_t c = (x >> (i << 1)) & 3; // c = 0, 1, 2, 3
-            int pos = x * 16 + i * 4;
-            for (uint8_t j = 0; j < 4; ++j)
-                dict[pos + j] = c * 4 + j;
-        }
-    }
-
-    return dict;
-}
-static const __m128i *match_shuffle_dict = (__m128i *)prepare_match_shuffle_dict();
-
+unsigned long long simd_byte_hit_count[4] = {0, 0, 0, 0};
 static const uint8_t byte_check_group_a_pi8[64] = {
     0,
     0,
@@ -487,8 +409,86 @@ static const uint8_t byte_check_group_b_pi8[64] = {
 static const __m128i *byte_check_group_a_order = (__m128i *)(byte_check_group_a_pi8);
 static const __m128i *byte_check_group_b_order = (__m128i *)(byte_check_group_b_pi8);
 
-int intersect_filter_simd4x_count(int *set_a, int size_a,
-                                  int *set_b, int size_b)
+inline int *init_byte_mask_lookup()
+{
+    int *mask = new int[65536];
+
+    auto trans_c_s = [](const int c) -> int
+    {
+        switch (c)
+        {
+        case 0:
+            return -1; // no match
+        case 1:
+            return 0;
+        case 2:
+            return 1;
+        case 4:
+            return 2;
+        case 8:
+            return 3;
+        default:
+            return 4; // multiple matches.
+        }
+    };
+
+    for (int x = 0; x < 65536; ++x)
+    {
+        int c0 = (x & 0xf), c1 = ((x >> 4) & 0xf);
+        int c2 = ((x >> 8) & 0xf), c3 = ((x >> 12) & 0xf);
+        int s0 = trans_c_s(c0), s1 = trans_c_s(c1);
+        int s2 = trans_c_s(c2), s3 = trans_c_s(c3);
+
+        bool is_multiple_match = (s0 == 4) || (s1 == 4) ||
+                                 (s2 == 4) || (s3 == 4);
+        if (is_multiple_match)
+        {
+            mask[x] = -1;
+            continue;
+        }
+        bool is_no_match = (s0 == -1) && (s1 == -1) &&
+                           (s2 == -1) && (s3 == -1);
+        if (is_no_match)
+        {
+            mask[x] = -2;
+            continue;
+        }
+        if (s0 == -1)
+            s0 = 0;
+        if (s1 == -1)
+            s1 = 1;
+        if (s2 == -1)
+            s2 = 2;
+        if (s3 == -1)
+            s3 = 3;
+        mask[x] = (s0) | (s1 << 2) | (s2 << 4) | (s3 << 6);
+    }
+
+    return mask;
+}
+static const int *byte_mask_lookup_table = init_byte_mask_lookup();
+
+inline uint8_t *init_shuffle_dict()
+{
+    uint8_t *dict = new uint8_t[4096];
+
+    for (int x = 0; x < 256; ++x)
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            uint8_t c = (x >> (i << 1)) & 3; // c = 0, 1, 2, 3
+            int pos = x * 16 + i * 4;
+            for (uint8_t j = 0; j < 4; ++j)
+                dict[pos + j] = c * 4 + j;
+        }
+    }
+
+    return dict;
+}
+static const __m128i *shuffle_pattern_dict = (__m128i *)init_shuffle_dict();
+
+int unpacked_simd_intersection(int *set_a, int size_a,
+                               int *set_b, int size_b)
 {
     int i = 0, j = 0, res = 0;
     int qs_a = size_a - (size_a & 3);
@@ -501,8 +501,6 @@ int intersect_filter_simd4x_count(int *set_a, int size_a,
 
         int a_max = set_a[i + 3];
         int b_max = set_b[j + 3];
-        // i += (a_max <= b_max) * 4;
-        // j += (b_max <= a_max) * 4;
         if (a_max == b_max)
         {
             i += 4;
@@ -525,7 +523,7 @@ int intersect_filter_simd4x_count(int *set_a, int size_a,
         __m128i byte_group_b = _mm_shuffle_epi8(v_b, byte_check_group_b_order[0]);
         __m128i byte_check_mask = _mm_cmpeq_epi8(byte_group_a, byte_group_b);
         int bc_mask = _mm_movemask_epi8(byte_check_mask);
-        int ms_order = byte_check_mask_dict[bc_mask];
+        int ms_order = byte_mask_lookup_table[bc_mask];
         if (__builtin_expect(ms_order == -1, 0))
         {
             byte_group_a = _mm_shuffle_epi8(v_a, byte_check_group_a_order[1]);
@@ -533,7 +531,7 @@ int intersect_filter_simd4x_count(int *set_a, int size_a,
             byte_check_mask = _mm_and_si128(byte_check_mask,
                                             _mm_cmpeq_epi8(byte_group_a, byte_group_b));
             bc_mask = _mm_movemask_epi8(byte_check_mask);
-            ms_order = byte_check_mask_dict[bc_mask];
+            ms_order = byte_mask_lookup_table[bc_mask];
 
             if (__builtin_expect(ms_order == -1, 0))
             {
@@ -542,7 +540,7 @@ int intersect_filter_simd4x_count(int *set_a, int size_a,
                 byte_check_mask = _mm_and_si128(byte_check_mask,
                                                 _mm_cmpeq_epi8(byte_group_a, byte_group_b));
                 bc_mask = _mm_movemask_epi8(byte_check_mask);
-                ms_order = byte_check_mask_dict[bc_mask];
+                ms_order = byte_mask_lookup_table[bc_mask];
 
                 if (__builtin_expect(ms_order == -1, 0))
                 {
@@ -551,14 +549,14 @@ int intersect_filter_simd4x_count(int *set_a, int size_a,
                     byte_check_mask = _mm_and_si128(byte_check_mask,
                                                     _mm_cmpeq_epi8(byte_group_a, byte_group_b));
                     bc_mask = _mm_movemask_epi8(byte_check_mask);
-                    ms_order = byte_check_mask_dict[bc_mask];
+                    ms_order = byte_mask_lookup_table[bc_mask];
                 }
             }
         }
         if (ms_order == -2)
             continue; // "no match" in this two block.
 
-        __m128i sf_v_b = _mm_shuffle_epi8(v_b, match_shuffle_dict[ms_order]);
+        __m128i sf_v_b = _mm_shuffle_epi8(v_b, shuffle_pattern_dict[ms_order]);
         __m128i cmp_mask = _mm_cmpeq_epi32(v_a, sf_v_b);
 
         int mask = _mm_movemask_ps((__m128)cmp_mask);
@@ -585,8 +583,8 @@ int intersect_filter_simd4x_count(int *set_a, int size_a,
 
     return res;
 }
-int bp_intersect_filter_simd4x_count(int *bases_a, PackState *states_a, int size_a,
-                                     int *bases_b, PackState *states_b, int size_b)
+int bitpacked_simd_intersection(int *bases_a, PackState *states_a, int size_a,
+                                int *bases_b, PackState *states_b, int size_b)
 {
     inter_cnt++;
     int len_a = std::min(size_a, size_b), len_b = std::max(size_a, size_b);
@@ -637,7 +635,7 @@ int bp_intersect_filter_simd4x_count(int *bases_a, PackState *states_a, int size
         __m128i byte_group_b = _mm_shuffle_epi8(base_b, byte_check_group_b_order[0]);
         __m128i byte_check_mask = _mm_cmpeq_epi8(byte_group_a, byte_group_b);
         int bc_mask = _mm_movemask_epi8(byte_check_mask);
-        int ms_order = byte_check_mask_dict[bc_mask];
+        int ms_order = byte_mask_lookup_table[bc_mask];
         if (__builtin_expect(ms_order == -1, 0))
         {
             multimatch_cnt++;
@@ -646,7 +644,7 @@ int bp_intersect_filter_simd4x_count(int *bases_a, PackState *states_a, int size
             byte_check_mask = _mm_and_si128(byte_check_mask,
                                             _mm_cmpeq_epi8(byte_group_a, byte_group_b));
             bc_mask = _mm_movemask_epi8(byte_check_mask);
-            ms_order = byte_check_mask_dict[bc_mask];
+            ms_order = byte_mask_lookup_table[bc_mask];
             bn++;
             if (__builtin_expect(ms_order == -1, 0))
             {
@@ -655,7 +653,7 @@ int bp_intersect_filter_simd4x_count(int *bases_a, PackState *states_a, int size
                 byte_check_mask = _mm_and_si128(byte_check_mask,
                                                 _mm_cmpeq_epi8(byte_group_a, byte_group_b));
                 bc_mask = _mm_movemask_epi8(byte_check_mask);
-                ms_order = byte_check_mask_dict[bc_mask];
+                ms_order = byte_mask_lookup_table[bc_mask];
                 bn++;
                 if (__builtin_expect(ms_order == -1, 0))
                 {
@@ -664,7 +662,7 @@ int bp_intersect_filter_simd4x_count(int *bases_a, PackState *states_a, int size
                     byte_check_mask = _mm_and_si128(byte_check_mask,
                                                     _mm_cmpeq_epi8(byte_group_a, byte_group_b));
                     bc_mask = _mm_movemask_epi8(byte_check_mask);
-                    ms_order = byte_check_mask_dict[bc_mask];
+                    ms_order = byte_mask_lookup_table[bc_mask];
                     bn++;
                 }
             }
@@ -675,14 +673,14 @@ int bp_intersect_filter_simd4x_count(int *bases_a, PackState *states_a, int size
             no_match_cnt++;
             continue;
         } // "no match" in this two block.
-        byte_check_cnt[bn]++;
+        simd_byte_hit_count[bn]++;
 
-        __m128i sf_base_b = _mm_shuffle_epi8(base_b, match_shuffle_dict[ms_order]);
-        __m128i sf_state_b = _mm_shuffle_epi8(state_b, match_shuffle_dict[ms_order]);
+        __m128i sf_base_b = _mm_shuffle_epi8(base_b, shuffle_pattern_dict[ms_order]);
+        __m128i sf_state_b = _mm_shuffle_epi8(state_b, shuffle_pattern_dict[ms_order]);
         __m128i cmp_mask = _mm_cmpeq_epi32(base_a, sf_base_b);
         __m128i and_state = _mm_and_si128(cmp_mask, _mm_and_si128(state_a, sf_state_b));
 
-        __m128i state_mask = _mm_cmpeq_epi32(and_state, all_zero_si128);
+        __m128i state_mask = _mm_cmpeq_epi32(and_state, SIMD_ZERO_VECTOR);
         cmp_mask = _mm_andnot_si128(state_mask, cmp_mask);
         int mask = _mm_movemask_ps((__m128)cmp_mask);
         size_c += _mm_popcnt_u32(mask);
@@ -718,7 +716,7 @@ int bp_intersect_filter_simd4x_count(int *bases_a, PackState *states_a, int size
     return res;
 }
 
-int merge(int *set_a, int size_a, int *set_b, int size_b, int *set_c)
+int merge_sorted_arrays(int *set_a, int size_a, int *set_b, int size_b, int *set_c)
 {
     int i = 0, j = 0, size_c = 0;
     while (i < size_a && j < size_b)
