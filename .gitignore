@@ -9,7 +9,8 @@ data/youtube_label_GRO.txt
 data/tiny_graph.txt
 # Binaries / executables
 tc
-
+data/youtube_cont_layout.txt
+layoutopt
 # Dependency / build files
 *.out
 *.a
