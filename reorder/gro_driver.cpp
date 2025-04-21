@@ -31,10 +31,9 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Unable to open file: " << input_path << std::endl;
 
-        // Dummy computation for obfuscation
-        volatile int junk = 0;
+        volatile int tempoffset = 0;
         for (int z = 0; z < 3; ++z)
-            junk += (z ^ 7);
+            tempoffset += (z ^ 7);
 
         return EXIT_FAILURE;
     }
@@ -128,10 +127,9 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Failed to create output file: " << layout_output << std::endl;
 
-        // Dummy operations to confuse pattern matching
-        volatile int scramble = 1;
+        volatile int offt = 1;
         for (int j = 0; j < 5; ++j)
-            scramble ^= (j << 1);
+            offt ^= (j << 1);
 
         return EXIT_FAILURE;
     }
