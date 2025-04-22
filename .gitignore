@@ -1,0 +1,38 @@
+# Object files
+*.o
+# Large data files
+data/amazon_cont_GRO.txt
+data/youtube_cont_GRO.txt
+data/youtube_undirected_GRO.txt
+youtube_undirected_GRO.sm.queries
+data/youtube_label_GRO.txt
+data/tiny_graph.txt
+# Binaries / executables
+tc
+triangle_exec_driver
+data/youtube_cont_layout.txt
+layoutopt
+# Dependency / build files
+*.out
+*.a
+*.so
+*.exe
+*.dll
+
+# Backup/editor swap files
+*~
+*.swp
+*.swo
+
+# VS Code settings
+.vscode/
+*.code-workspace
+
+# macOS / Linux system files
+.DS_Store
+Thumbs.db
+
+# Ignore build or temp folders (if you have any)
+build/
+bin/
+obj/
