@@ -30,7 +30,15 @@ This repository contains two core components:
 │   │   ├── node_cache.hpp
 │   │   └── score_queue.hpp
 │   └── Makefile
-```
+│
+├── MC/                            # Maximal Clique Enumeration project
+│   ├── MainCliqueDetection.cpp    # Main detection engine
+│   ├── include/
+│   │   ├── SIMDMaximalCliqueFinder.hpp
+│   │   ├── NaiveMaximalCliqueFinder.hpp
+│   │   ├── SIMDSetIntersection.hpp
+│   │   └── GraphUtils.hpp
+│   └── Makefile
 
 ---
 
@@ -61,6 +69,13 @@ make
 ./layoutopt ../Dataset/youtube_cont.txt
 ```
 
+### 2. Build Maximal Clique Detection
+
+```bash
+cd MC
+make
+./MainCliqueDetection ../Dataset/youtube_cont.txt
+```
 ---
 
 ## 📊 Output Format
@@ -96,6 +111,21 @@ Save Time (ms)           <float>
 ---------------------------------------------
 ```
 
+### Maximal Clique Detection Output
+
+```
+============================================
+🧠 MAXIMAL CLIQUE DETECTION REPORT 🧠
+============================================
+📊 Individual Buffer Size(s)    : <float> KB
+📊 Compression Ratio         : <float>
+⏱️ Graph Loading Time       : <float> ms
+🧠 Working Memory Allocated  : <float> MB
+📄 Graph File                : <graph_file>
+🔍 Total Cliques             : <int>
+⏱️ Detection Time           : <float> ms
+============================================
+```
 ---
 
 ## 🧠 Algorithm Notes
