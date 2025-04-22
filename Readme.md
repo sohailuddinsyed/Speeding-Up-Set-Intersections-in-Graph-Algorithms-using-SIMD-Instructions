@@ -116,12 +116,6 @@ Save Time (ms)           <float>
 
 ---
 
-## 🧾 License
-
-MIT License. See `LICENSE` file.
-
----
-
 ## 📊 Sample Results
 
 ### ▶️ Layout Optimization Output
