@@ -1,10 +1,10 @@
 
 # SIMD-Accelerated Triangle Counting & Graph Reordering
 
-This repository contains two core components:
+This repository contains three core components:
 1. **TC** - A SIMD-optimized triangle counting module.
 2. **GRO** - A graph reordering optimizer to improve compression and cache locality.
-
+3. **MC** - A maximal clique enumeration module using SIMD-accelerated set operations.
 ---
 
 ## 🔧 Project Structure
@@ -39,7 +39,7 @@ This repository contains two core components:
 │   │   ├── SIMDSetIntersection.hpp
 │   │   └── GraphUtils.hpp
 │   └── Makefile
-
+```
 ---
 
 ## ⚙️ Requirements
