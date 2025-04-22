@@ -8,7 +8,6 @@ youtube_undirected_GRO.sm.queries
 data/youtube_label_GRO.txt
 data/tiny_graph.txt
 # Binaries / executables
-tc
 triangle_exec_driver
 data/youtube_cont_layout.txt
 layoutopt
