@@ -1,9 +1,9 @@
-CXX = g++ -std=c++11
+CXX = g++ -std=c++17
 CXXFLAGS = -O3 -Wall -Wno-unused-result -mavx2 -pthread -I./roaring
 
-TARGET = mc
-SOURCES = mc.cpp set_operation.hpp
-HEADERS = util.hpp set_operation.hpp bitpack_maximal_clique.hpp org_maximal_clique.hpp 
+TARGET = MainCliqueDetection
+SOURCES = MainCliqueDetection.cpp SIMDSetIntersection.hpp
+HEADERS = GraphUtils.hpp SIMDSetIntersection.hpp SIMDMaximalCliqueFinder.hpp NaiveMaximalCliqueFinder.hpp 
 OBJECTS = $(SOURCES:.cpp=.o) 
 
 all: $(TARGET)
